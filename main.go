@@ -5,6 +5,7 @@ import (
 	"noutaja/command"
 	"noutaja/command/fetch"
 	"noutaja/command/server"
+	"noutaja/command/version"
 	"os"
 
 	"github.com/mitchellh/cli"
@@ -13,8 +14,9 @@ import (
 func main() {
 
 	commands := map[string]cli.CommandFactory{
-		"server": command.NewCommand(server.NewServerCommand()),
-		"fetch":  command.NewCommand(fetch.NewFetchCommand()),
+		"server":  command.NewCommand(server.NewServerCommand()),
+		"fetch":   command.NewCommand(fetch.NewFetchCommand()),
+		"version": command.NewCommand(version.NewVersionCommand()),
 	}
 
 	cli := &cli.CLI{
