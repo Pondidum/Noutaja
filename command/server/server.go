@@ -2,15 +2,12 @@ package server
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
-	"errors"
 	"net/http"
+	"noutaja/cache"
 	"noutaja/tracing"
 	"os"
 	"path"
 
-	getter "github.com/hashicorp/go-getter"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -40,8 +37,8 @@ func (c *ServerCommand) Synopsis() string {
 func (c *ServerCommand) Flags() *pflag.FlagSet {
 
 	flags := pflag.NewFlagSet("server", pflag.ContinueOnError)
-	pflag.StringVar(&c.addr, "addr", "localhost:5959", "")
-	pflag.StringVar(&c.cache, "cache-dir", "", "")
+	flags.StringVar(&c.addr, "addr", "localhost:5959", "")
+	flags.StringVar(&c.cache, "cache-dir", "", "")
 
 	return flags
 }
@@ -90,39 +87,19 @@ func (cmd *ServerCommand) Execute(ctx context.Context, args []string) error {
 			attribute.Bool("query.refetch", dto.Refetch),
 		)
 
-		hash := md5.Sum([]byte(dto.Url))
-		key := base64.RawStdEncoding.EncodeToString(hash[:])
-		contentPath := path.Join(cmd.cache, key)
-
-		_, err := os.Stat(contentPath)
-		exists := err == nil || !errors.Is(err, os.ErrNotExist)
-
+		location, err := cache.Get(ctx, cache.GetArgs{
+			CachePath: cmd.cache,
+			Url:       dto.Url,
+			Refetch:   dto.Refetch,
+		})
 		if err != nil {
-			// in case there is something interesting happening log the error, but don't fail the request
-			span.RecordError(err)
-		}
-
-		span.SetAttributes(
-			attribute.String("cache.key", key),
-			attribute.String("cache.path", contentPath),
-			attribute.Bool("cache.hit", exists),
-		)
-
-		if !exists || dto.Refetch {
-			span.SetAttributes(attribute.Bool("get.remote", true))
-
-			err := getter.GetFile(contentPath, dto.Url, getter.WithContext(ctx))
-			if err != nil {
-				return tracing.Error(span, err)
-			}
-
-			span.SetAttributes(attribute.Bool("get.success", true))
+			return tracing.Error(span, err)
 		}
 
 		filename := path.Base(dto.Url)
 		span.SetAttributes(attribute.String("response.filename", filename))
 
-		if err := c.Download(contentPath, filename); err != nil {
+		if err := c.Download(location, filename); err != nil {
 			return tracing.Error(span, err)
 		}
 

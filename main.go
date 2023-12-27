@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"noutaja/command"
+	"noutaja/command/fetch"
 	"noutaja/command/server"
 	"os"
 
@@ -13,6 +14,7 @@ func main() {
 
 	commands := map[string]cli.CommandFactory{
 		"server": command.NewCommand(server.NewServerCommand()),
+		"fetch":  command.NewCommand(fetch.NewFetchCommand()),
 	}
 
 	cli := &cli.CLI{
