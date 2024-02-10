@@ -3,9 +3,9 @@ name: Build
 on:
   push:
     branches:
-      - '**'
+      - "**"
     tags-ignore:
-      - '**'
+      - "**"
   pull_request:
   workflow_dispatch:
 
@@ -21,36 +21,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v3
 
-    - uses: actions/checkout@v3
+      - name: Generate Version
+        run: echo "VERSION=$(git rev-parse --short HEAD)" >> "${GITHUB_ENV}"
 
-    - uses: actions/setup-go@v3
-      with:
-        go-version-file: "go.mod"
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: "go.mod"
 
-    - name: Download Modules
-      run: go mod download
+      - name: Download Modules
+        run: go mod download
 
-    - name: Build
-      env:
-        GOOS: linux
-        GOARCH: amd64
-        CGO_ENABLED: "0"
-      run: go build -ldflags="-X noutaja/command/version.GitCommit=${{ github.sha }} -X noutaja/command/version.Prerelease="""
+      - name: Build Linux amd64
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          go build \
+            -ldflags="-X noutaja/command/version.GitCommit=${{ github.sha }} -X noutaja/command/version.Prerelease=""" \
+            -o noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
 
-    - name: Generate Version
-      run: echo "VERSION=$(./noutaja version)" >> "${GITHUB_ENV}"
+      - name: Store Noutaja Binary
+        uses: actions/upload-artifact@v3
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        with:
+          name: noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
+          path: noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
 
-    - name: Store Noutaja Binary
-      uses: actions/upload-artifact@v3
-      with:
-        name: noutaja
-        path: noutaja
+      - name: Build Linux arm64
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: "0"
+        run: |
+          go build \
+            -ldflags="-X noutaja/command/version.GitCommit=${{ github.sha }} -X noutaja/command/version.Prerelease=""" \
+            -o noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
 
-    - name: Release
-      if: ${{ github.ref_name == 'main' }}
-      uses: softprops/action-gh-release@v1
-      with:
-        name: ${{ env.VERSION }}
-        tag_name: ${{ env.VERSION }}
-        files: noutaja
+      - name: Store Noutaja Binary
+        uses: actions/upload-artifact@v3
+        env:
+          GOOS: linux
+          GOARCH: arm64
+        with:
+          name: noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
+          path: noutaja-${{ env.GOOS }}-${{ env.GOARCH }}
+
+      - name: Release
+        if: ${{ github.ref_name == 'main' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          files: noutaja-*
