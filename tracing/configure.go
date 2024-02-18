@@ -104,12 +104,12 @@ func createExporter(ctx context.Context) (sdktrace.SpanExporter, error) {
 		endpoint = val
 	}
 
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
 	if strings.HasPrefix(endpoint, "https://") || strings.HasPrefix(endpoint, "http://") {
+
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
 
 		opts := []otlphttp.Option{}
 
